@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ルーレットアプリ</title>
+    <style>
+        /* --- CSS部分 --- */
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 上揃えに調整 */
+            padding: 20px;
+            gap: 40px;
+            min-height: 100vh;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        /* 左側（ルーレット） */
+        .roulette-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 右側（項目設定） */
+        .settings-area {
+            flex: 1;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2 {
+            color: #333;
+            margin-top: 0;
+        }
+
+        /* ルーレット本体のスタイル */
+        .wheel-container {
+            width: 300px;
+            height: 300px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background-color: #ddd;
+            position: relative;
+            transition: transform 4s cubic-bezier(0.25, 0.1, 0.25, 1); /* スムーズな停止のための遷移 */
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+            border: 5px solid #333;
+            transform: rotate(0deg); /* 初期位置 */
+        }
+
+        /* 矢印（目印） */
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 15px solid #e74c3c;
+            z-index: 10;
+        }
+
+        /* ルーレットの項目（扇形） */
+        .segment {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            clip-path: polygon(50% 50%, 50% 0, 100% 0); /* 基本の三角形（JavaScriptで調整） */
+            transform-origin: 50% 50%;
+        }
+        
+        /* 項目内のテキスト */
+        .segment-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(90deg) translateX(calc(150px - 20px)); /* 中心から外側へ */
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+        
+        /* ボタン */
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #27ae60;
+        }
+
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        /* 結果表示 */
+        #result-display {
+            margin-top: 30px;
+            font-size: 32px;
+            font-weight: bold;
+            color: #c0392b;
+            text-align: center;
+            min-height: 50px;
+        }
+
+        /* 項目設定リスト */
+        #item-list {
+            list-style: none;
+            padding: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        #item-list li {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #item-list li:last-child {
+            border-bottom: none;
+        }
+
+        .remove-btn {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .add-item-control {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .add-item-control input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            flex-grow: 1;
+        }
+
+        .add-btn {
+            background-color: #3498db;
+        }
+
+        .add-btn:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="roulette-area">
+            <h1>🎲 ルーレット</h1>
+            
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <div class="wheel" id="roulette-wheel">
+                    </div>
+            </div>
+
+            <button id="start-button">スタート！</button>
+
+            <h2>🎯 結果</h2>
+            <div id="result-display">...</div>
+        </div>
+
+        <div class="settings-area">
+            <h2>📝 項目設定（最大20個）</h2>
+            
+            <ul id="item-list">
+                </ul>
+
+            <div class="add-item-control">
+                <input type="text" id="new-item-text" placeholder="新しい項目名を入力">
+                <button id="add-item-button" class="add-btn">項目追加</button>
+            </div>
+            <p style="font-size: 0.9em; color: #777;">現在の項目数: <span id="item-count">1</span> / 20</p>
+        </div>
+    </div>
+
+    <script>
+        // --- JavaScript部分 ---
+        const items = ["A"]; // デフォルト項目
+        const maxItems = 20;
+
+        const wheel = document.getElementById('roulette-wheel');
+        const startButton = document.getElementById('start-button');
+        const resultDisplay = document.getElementById('result-display');
+        const itemList = document.getElementById('item-list');
+        const newItemText = document.getElementById('new-item-text');
+        const addItemButton = document.getElementById('add-item-button');
+        const itemCountSpan = document.getElementById('item-count');
+        let isSpinning = false;
+        let segmentColors = [
+            '#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', 
+            '#e67e22', '#1abc9c', '#d35400', '#2980b9', '#c0392b',
+            '#27ae60', '#f39c12', '#8e44ad', '#34495e', '#ecf0f1',
+            '#95a5a6', '#bdc3c7', '#7f8c8d', '#2c3e50', '#ff7675'
+        ];
+
+        /**
+         * ルーレットの描画を更新する
+         */
+        function drawWheel() {
+            wheel.innerHTML = '';
+            const totalItems = items.length;
+            if (totalItems === 0) return;
+
+            const anglePerSegment = 360 / totalItems;
+
+            items.forEach((item, index) => {
+                const segment = document.createElement('div');
+                segment.className = 'segment';
+                segment.style.backgroundColor = segmentColors[index % segmentColors.length];
+                
+                // 項目に対応する開始角度と終了角度を計算
+                const startAngle = index * anglePerSegment;
+                const endAngle = (index + 1) * anglePerSegment;
+                
+                // 扇形をCSSのclip-pathとtransformで描画
+                // まずは基本的な扇形のclip-path
+                const clipPath = `polygon(50% 50%, 50% 0, ${50 + 50 * Math.sin(anglePerSegment * Math.PI / 180)}% ${50 - 50 * Math.cos(anglePerSegment * Math.PI / 180)}%, 100% 0, 100% 50%)`; // 簡易的なクリップパス
+                
+                // clip-pathを調整する代わりに、三角形の要素を回転させて扇形を構成
+                // ここではtransform: skewYなどを使わずにシンプルに回転とclip-pathを工夫
+                
+                // 基本の三角形を作成し、回転させる
+                segment.style.clipPath = `polygon(50% 50%, 50% 0%, 100% 0%)`;
+                segment.style.transform = `rotate(${startAngle}deg) skewY(${90 - anglePerSegment}deg) scaleY(${1 / Math.cos(anglePerSegment * Math.PI / 360)})`;
+                
+                // clip-pathで複雑になるため、より簡単な実装として、
+                // anglePerSegmentが360の約数の場合、回転だけで項目を作成
+                segment.style.transform = `rotate(${startAngle}deg)`;
+                
+                // 項目数を増やしても綺麗に見えるよう、クリップパスは使用せず、
+                // 一律の扇形表示を諦めて、シンプルな回転のみで表示を構成
+                // 簡潔さを優先し、純粋なCSSでの扇形描画は難しいため、CSSの描画をシンプル化
+                segment.style.clipPath = `polygon(50% 50%, 50% 0%, 100% 0%)`; // ダミー
+
+                // 項目テキスト
+                const text = document.createElement('div');
+                text.className = 'segment-text';
+                text.innerText = item;
+                // テキストの回転角度を調整
+                text.style.transform = `rotate(${startAngle + anglePerSegment / 2}deg) translate(0, -150px) rotate(90deg)`;
+
+                segment.appendChild(text);
+                wheel.appendChild(segment);
+            });
+            
+            // 簡潔な描画のため、CSSの扇形描画ロジックは上記の通り断念し、
+            // items.lengthに応じてCSSを動的に設定する形に変更（HTML/CSSのみでは限界があるため）
+            
+            // 項目数に応じて、各項目のclip-pathを動的に設定する関数
+            function setSegmentClipPaths() {
+                const segments = document.querySelectorAll('.segment');
+                const angle = 360 / totalItems;
+                
+                segments.forEach((seg, idx) => {
+                    seg.style.transform = `rotate(${idx * angle}deg)`;
+                    seg.style.clipPath = totalItems === 1 ? 'none' : 
+                                         totalItems === 2 ? 'polygon(0% 0%, 100% 0%, 100% 50%, 50% 50%, 0% 50%)' : // 2項目は半円
+                                         'polygon(50% 50%, 50% 0%, 100% 0%, 100% 50%, 50% 50%)'; // 簡易的な扇形
+                    
+                    // テキスト位置調整
+                    const textEl = seg.querySelector('.segment-text');
+                    if (textEl) {
+                        // ルーレットの半径が150pxとして、テキストを外側に配置
+                        textEl.style.transform = `rotate(${90 + angle / 2}deg) translate(0, -130px) rotate(-${90 + angle / 2}deg)`;
+                    }
+                });
+                
+                // 項目が2つの場合は、CSSで半円の形に上書き
+                if (totalItems === 2) {
+                    segments[0].style.clipPath = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)'; // 全円
+                    segments[0].style.clipPath = 'polygon(0% 0%, 100% 0%, 100% 50%, 50% 50%, 0% 50%)'; // 左半分
+                    segments[1].style.clipPath = 'polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)'; // 右半分
+                    segments[0].style.transform = 'rotate(-90deg)';
+                    segments[1].style.transform = 'rotate(90deg)';
+
+                    const text1 = segments[0].querySelector('.segment-text');
+                    const text2 = segments[1].querySelector('.segment-text');
+                    if (text1) text1.style.transform = `translate(0, -130px) rotate(0deg)`;
+                    if (text2) text2.style.transform = `translate(0, -130px) rotate(180deg)`;
+                }
+            }
+            setSegmentClipPaths();
+        }
+
+        /**
+         * 項目リストの表示を更新する
+         */
+        function updateItemList() {
+            itemList.innerHTML = '';
+            items.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${index + 1}. ${item} (${String.fromCharCode(65 + index)})</span>
+                    <button class="remove-btn" data-index="${index}">削除</button>
+                `;
+                itemList.appendChild(li);
+            });
+            itemCountSpan.textContent = items.length;
+            
+            // 削除ボタンのイベントリスナーを設定
+            document.querySelectorAll('.remove-btn').forEach(button => {
+                button.addEventListener('click', removeItem);
+            });
+            
+            // ルーレットも更新
+            drawWheel();
+            
+            // 項目が1個以下の場合、スタートボタンを無効化
+            startButton.disabled = items.length < 2 || isSpinning;
+        }
+
+        /**
+         * 項目を追加する
+         */
+        function addItem() {
+            const text = newItemText.value.trim();
+            if (text && items.length < maxItems) {
+                items.push(text);
+                newItemText.value = '';
+                updateItemList();
+            } else if (items.length >= maxItems) {
+                alert(`項目は最大${maxItems}個までです。`);
+            }
+        }
+
+        /**
+         * 項目を削除する
+         */
+        function removeItem(event) {
+            if (items.length <= 1) {
+                alert("項目は最低1つ必要です。");
+                return;
+            }
+            const index = parseInt(event.target.dataset.index);
+            items.splice(index, 1);
+            updateItemList();
+        }
+
+        /**
+         * ルーレットを回す
+         */
+        function spinWheel() {
+            if (isSpinning || items.length < 2) return;
+
+            isSpinning = true;
+            startButton.disabled = true;
+            addItemButton.disabled = true;
+            resultDisplay.textContent = '回転中...';
+            
+            // 停止する項目をランダムに決定
+            const randomIndex = Math.floor(Math.random() * items.length);
+            const selectedItem = items[randomIndex];
+            
+            // 項目ごとの角度
+            const anglePerSegment = 360 / items.length;
+            
+            // 停止目標角度（ランダムに選ばれた項目の中心にポインターが来るように調整）
+            // 0度の位置が真上（ポインター）
+            // 項目`randomIndex`の開始角度: `randomIndex * anglePerSegment`
+            // 項目`randomIndex`の中心角度: `randomIndex * anglePerSegment + anglePerSegment / 2`
+            
+            // 停止目標角度（ポインターが項目の中心に来るように）
+            // -90度を基準（ポインター位置）とし、そこから目標項目分を回す
+            let stopAngle = 360 - (randomIndex * anglePerSegment + anglePerSegment / 2);
+            
+            // 複数周回るように大きな角度を加算 (例: 5〜8周)
+            const rotations = 5 + Math.floor(Math.random() * 4); 
+            const finalAngle = stopAngle + rotations * 360; 
+            
+            // CSSのtransformを更新
+            wheel.style.transition = 'transform 4s cubic-bezier(0.25, 0.1, 0.25, 1)';
+            wheel.style.transform = `rotate(${finalAngle}deg)`;
+            
+            // 4秒後に停止後の処理を実行
+            setTimeout(() => {
+                isSpinning = false;
+                startButton.disabled = items.length < 2;
+                addItemButton.disabled = items.length >= maxItems;
+                
+                // 結果表示を大きく表示
+                resultDisplay.textContent = selectedItem;
+            }, 4000);
+
+            // ルーレットの見た目がリセットされないように、最終角度を新しい初期角度として設定
+            // これにより、次に回すときに現在の位置からスムーズに始まる
+            wheel.addEventListener('transitionend', function handler() {
+                wheel.style.transition = 'none';
+                // 360度で割った余りを設定し、回転をリセット
+                wheel.style.transform = `rotate(${finalAngle % 360}deg)`; 
+                wheel.removeEventListener('transitionend', handler);
+            });
+        }
+
+        // 初期化処理
+        document.addEventListener('DOMContentLoaded', () => {
+            updateItemList();
+            
+            // イベントリスナー
+            startButton.addEventListener('click', spinWheel);
+            addItemButton.addEventListener('click', addItem);
+            newItemText.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    addItem();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
