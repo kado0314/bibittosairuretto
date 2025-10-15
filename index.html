@@ -87,18 +87,16 @@
         .segment {
             position: absolute;
             width: 50%;
-            height: 50%;
+            height: 100%; /* 全体の高さを利用 */
             top: 0;
             left: 50%;
-            transform-origin: 0% 100%; 
-            clip-path: polygon(0% 0%, 100% 0%, 0% 100%); 
+            transform-origin: 0% 50%; /* 中心を回転軸にする */
+            /* clip-pathはJSで動的に設定 */
         }
         
         /* 項目内のラベル (A, B, C...) */
         .segment-label {
             position: absolute;
-            top: 0;
-            left: 0;
             width: 100%; 
             height: 100%; 
             display: flex;
@@ -106,8 +104,8 @@
             align-items: center;
             color: white;
             font-weight: bold;
-            font-size: 20px;
-            transform-origin: 50% 50%; 
+            font-size: 24px; /* 文字を大きく */
+            pointer-events: none; /* クリックイベントを無効化 */
         }
         
         /* ボタン、結果表示、項目設定リストのスタイルは前回のまま */
@@ -247,7 +245,7 @@
         ];
 
         /**
-         * ルーレットの描画を更新する (円形描画)
+         * ルーレットの描画を更新する (空白を減らし、文字を中央に)
          */
         function drawWheel() {
             wheel.innerHTML = '';
@@ -262,41 +260,59 @@
                 segment.className = 'segment';
                 segment.style.backgroundColor = segmentColors[index % segmentColors.length];
                 
-                segment.style.width = '100%';
-                segment.style.height = '100%';
-                segment.style.top = '0';
-                segment.style.left = '0';
-                segment.style.transformOrigin = '50% 50%'; // 中心を原点に
-                segment.style.transform = `rotate(${index * anglePerSegment}deg)`;
-                
-                // 扇形をCSSのcone-gradient風に描画 (ここではclip-pathと回転で代用)
-                // 3項目以上の場合の共通ロジック
-                if (totalItems > 2) {
-                    // 中心から伸びる大きな三角形を作成し、回転で扇形に見せる
+                // 項目数に応じた描画ロジック
+                if (totalItems === 1) {
+                    // 1項目: 全円
+                    segment.style.width = '100%';
+                    segment.style.height = '100%';
+                    segment.style.left = '0%';
+                    segment.style.clipPath = 'none';
+                    segment.style.transform = 'none';
+                    segment.style.transformOrigin = '50% 50%';
+                } else if (totalItems === 2) {
+                    // 2項目: 半円 (左右)
+                    segment.style.width = '50%';
+                    segment.style.height = '100%';
+                    segment.style.top = '0';
+                    segment.style.transformOrigin = '100% 50%';
+                    segment.style.clipPath = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+                    
+                    if (index === 0) { // 右半分 (0度)
+                        segment.style.left = '50%';
+                        segment.style.transform = 'none';
+                    } else { // 左半分 (180度)
+                        segment.style.left = '0%';
+                        segment.style.transform = 'rotate(180deg)';
+                    }
+                } else if (totalItems === 3) {
+                     // 3項目: 120度セグメント
+                    // 複雑なclip-pathの代わりに、幅100%の大きな三角形を使い、中心を回転軸にして回転
+                    segment.style.width = '100%';
+                    segment.style.height = '100%';
+                    segment.style.left = '0%';
+                    segment.style.top = '0%';
+                    segment.style.transformOrigin = '50% 50%';
+                    // 120度の三角形クリップパス
+                    segment.style.clipPath = `polygon(50% 50%, 50% 0%, 150% 0%, 150% 100%, 50% 100%)`; // ダミー
+                    // 正しい120度のクリップパスは複雑なため、回転とclip-pathを工夫
+                    // ここでは、CSSの限界を考慮し、三角セグメントを回転させて埋める方式を維持
                     segment.style.width = '50%';
                     segment.style.height = '100%';
                     segment.style.left = '50%';
                     segment.style.top = '0';
-                    segment.style.transformOrigin = '0% 50%'; // 左端中央を回転軸に
+                    segment.style.transformOrigin = '0% 50%'; 
                     segment.style.clipPath = 'polygon(0% 50%, 100% 0%, 100% 100%)'; // 中心から外縁への三角形
-
-                    // セグメントを適切な角度に回転
-                    segment.style.transform = `rotate(${index * anglePerSegment - 90}deg)`;
-                } else if (totalItems === 2) {
-                    // 2項目の場合: 半円
+                    segment.style.transform = `rotate(${index * 120 - 90}deg)`; // -90, 30, 150
+                }
+                else {
+                    // 4項目以上: 一般的な扇形描画 (空白が少ないロジック)
                     segment.style.width = '50%';
                     segment.style.height = '100%';
+                    segment.style.left = '50%';
                     segment.style.top = '0';
-                    segment.style.transformOrigin = '100% 50%'; // 右端中央を回転軸に
-                    segment.style.clipPath = 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)'; // 長方形
-                    segment.style.transform = `rotate(${index * 180}deg)`; // 0度と180度
-                    segment.style.left = index === 0 ? '50%' : '0%';
-                } else if (totalItems === 1) {
-                     // 1項目の場合: 全円
-                    segment.style.width = '100%';
-                    segment.style.height = '100%';
-                    segment.style.clipPath = 'none';
-                    segment.style.transform = 'none';
+                    segment.style.transformOrigin = '0% 50%'; 
+                    segment.style.clipPath = 'polygon(0% 50%, 100% 0%, 100% 100%)'; // 中心から外縁への三角形
+                    segment.style.transform = `rotate(${index * anglePerSegment - 90}deg)`;
                 }
 
                 // ラベルの追加 (A, B, C...)
@@ -305,20 +321,31 @@
                 label.innerText = String.fromCharCode(65 + index); // A, B, C...
                 
                 // ラベルの回転と位置調整
-                const labelAngle = index * anglePerSegment + anglePerSegment / 2;
-                let labelRadius = wheelRadius * 0.7;
+                const labelAngle = index * anglePerSegment + anglePerSegment / 2; // 項目の中心角度
+                let labelRadius = 0; // ルーレットの中央に文字を配置
                 
+                // 文字を円の中心付近に配置
                 if (totalItems <= 4) {
+                    labelRadius = wheelRadius * 0.4;
+                } else {
                     labelRadius = wheelRadius * 0.5;
                 }
-
+                
+                // ラベルは**ルーレットの中心に対して**配置・回転する
+                label.style.position = 'absolute';
+                label.style.top = '50%';
+                label.style.left = '50%';
+                
+                // 角度に合わせて文字を中央に寄せ、回転を調整
+                label.style.transform = `
+                    rotate(${labelAngle}deg) 
+                    translate(${labelRadius}px, -50%) 
+                    rotate(${-labelAngle}deg) 
+                    translateY(-50%)`; // Y軸をさらに調整して中央に
+                
+                // 1項目の場合は中央に
                 if (totalItems === 1) {
                     label.style.transform = 'translate(-50%, -50%)'; 
-                } else {
-                    label.style.transform = `
-                        rotate(${labelAngle}deg) 
-                        translate(${labelRadius}px, -50%) 
-                        rotate(${-labelAngle}deg)`;
                 }
                 
                 segment.appendChild(label);
@@ -382,8 +409,7 @@
         }
 
         /**
-         * ルーレットを回す
-         * 🎯 停止位置をセグメントの中心に調整しました 🎯
+         * ルーレットを回す (停止位置は項目の中心)
          */
         function spinWheel() {
             if (isSpinning || items.length < 2) return;
@@ -400,23 +426,10 @@
             const totalItems = items.length;
             const anglePerSegment = 360 / totalItems;
             
-            // ----------------------------------------------------
-            // 🎯 停止目標角度の調整ロジック 🎯
-            // ポインター（真上、0度）が、選ばれた項目の中心に正確に来るように計算します。
-            // ----------------------------------------------------
-            
-            // 1. 選ばれた項目の中心の角度を計算 (時計回り)
-            // 例: A(index=0) の中心は anglePerSegment / 2
+            // 停止目標角度: 選ばれた項目の中心をポインター (0度) に持ってくる
             const centerOfSelectedItem = randomIndex * anglePerSegment + anglePerSegment / 2;
-            
-            // 2. ルーレットを回転させ、この中心角度をポインターの位置 (360度または0度) に持ってくるための回転角度を計算
-            // `360 - centerOfSelectedItem` が目標角度になります。
             let stopAngle = 360 - centerOfSelectedItem;
             
-            // 3. 停止位置にランダムな微調整を加えます (見た目の多様性のため、なくてもOK)
-            // stopAngle += (Math.random() * 2) - 1; // ±1度の範囲で微調整 (今回はジャスト停止優先でコメントアウト)
-            
-            // 4. 複数周回るように大きな角度を加算 (例: 5〜8周)
             const rotations = 5 + Math.floor(Math.random() * 4); 
             const finalAngle = stopAngle + rotations * 360; 
             
@@ -435,7 +448,6 @@
 
             wheel.addEventListener('transitionend', function handler() {
                 wheel.style.transition = 'none';
-                // 最終角度を360で割った余りを設定し、回転をリセット
                 wheel.style.transform = `rotate(${finalAngle % 360}deg)`; 
                 wheel.removeEventListener('transitionend', handler);
             });
